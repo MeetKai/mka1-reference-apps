@@ -1,0 +1,13 @@
+month,region,plan,active_lines,revenue_usd,support_tickets
+2026-07,North,Essential,1200,18000,82
+2026-07,North,Plus,650,16250,30
+2026-07,South,Essential,950,14250,75
+2026-07,South,Plus,500,12500,24
+2026-08,North,Essential,1250,18750,78
+2026-08,North,Plus,700,17500,28
+2026-08,South,Essential,980,14700,68
+2026-08,South,Plus,560,14000,25
+2026-09,North,Essential,1280,19200,70
+2026-09,North,Plus,760,19000,26
+2026-09,South,Essential,1020,15300,62
+2026-09,South,Plus,620,15500,23

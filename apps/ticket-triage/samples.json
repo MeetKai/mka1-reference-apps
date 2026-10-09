@@ -1,0 +1,30 @@
+[
+  {
+    "id": "billing",
+    "label": "Unexpected roaming charge",
+    "expected_team": "billing",
+    "expected_priority": "P3",
+    "ticket": "My latest invoice includes a roaming add-on I do not recognize. My phone service works normally. Could someone explain this charge before I decide whether to dispute it?"
+  },
+  {
+    "id": "outage",
+    "label": "Business connectivity outage",
+    "expected_team": "technical_support",
+    "expected_priority": "P1",
+    "ticket": "All 18 lines at our dispatch center lost connectivity 30 minutes ago. Calls and mobile data are down and dispatch operations have stopped. Please investigate urgently."
+  },
+  {
+    "id": "plan",
+    "label": "Change a mobile plan",
+    "expected_team": "account_services",
+    "expected_priority": "P3",
+    "ticket": "I would like to switch my mobile plan to a larger data allowance next month. Please explain the available process and what information you need from me."
+  },
+  {
+    "id": "single",
+    "label": "Single line without data",
+    "expected_team": "technical_support",
+    "expected_priority": "P2",
+    "ticket": "Mobile data has not worked on my phone since this morning. Voice calls still work and my colleagues have normal data service. Restarting the phone did not help."
+  }
+]
