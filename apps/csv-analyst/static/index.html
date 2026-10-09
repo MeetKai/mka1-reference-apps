@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta
       name="description"
-      content="Ask a question about a CSV. An agent analyzes the data in a temporary sandbox and creates an HTML report you can download."
+      content="Upload a CSV and ask a question to generate a report with calculations and findings."
     />
-    <title>From rows to a readable report. · MKA1 reference apps</title>
+    <title>CSV analyst · MKA1</title>
     <link rel="stylesheet" href="/static/styles.css" />
     <script src="/static/app.js" defer></script>
   </head>
@@ -17,18 +17,16 @@
         <div class="brand">
           <span class="brand-mark" aria-hidden="true">M1</span>MKA1
         </div>
-        <span class="topnote">Reference applications / 02</span>
+        <span class="topnote">Data analysis</span>
       </header>
       <section class="intro">
         <div>
-          <div class="eyebrow">A working example, ready to explore</div>
-          <h1>From rows to a readable report.</h1>
+          <h1>CSV analyst</h1>
           <p>
-            Ask a question about a CSV. An agent analyzes the data in a
-            temporary sandbox and creates an HTML report you can download.
+            Upload a CSV and ask a question to generate a report with
+            calculations and findings.
           </p>
         </div>
-        <span class="pill"><span class="dot"></span>Python SDK</span>
       </section>
       <main class="workspace">
         <section class="card">
@@ -39,20 +37,23 @@
           <div class="cardbody">
             <form id="form">
               <label class="upload" for="file"
-                ><strong>Choose a CSV to explore</strong
+                ><strong>Choose a CSV file</strong
                 ><input
                   id="file"
                   name="file"
                   type="file"
                   accept=".csv,text/csv" /></label
               ><button class="secondary" id="sample" type="button">
-                Use the sample telecom dataset
+                Use example data
               </button>
               <p class="file-meta" id="file-meta">
                 UTF-8 CSV · Up to 1 MB · 20,000 rows
               </p>
-              <label class="label" for="question"
-                >What would you like to understand?</label
+              <p class="subline">
+                Example data contains fictional telecom revenue and support
+                tickets.
+              </p>
+              <label class="label" for="question">Question</label
               ><textarea
                 class="small-textarea"
                 id="question"
@@ -63,8 +64,8 @@
               >
 Compare monthly revenue by region and plan. Show the largest changes and how support-ticket volume changed.</textarea>
               <p class="subline">
-                Your file and question are sent to the API only when you run
-                analysis.
+                Your file and question are sent to MKA1 when you select Generate
+                report.
               </p>
               <button class="primary" id="submit" type="submit">
                 Generate report <span aria-hidden="true">→</span>
@@ -83,10 +84,10 @@ Compare monthly revenue by region and plan. Show the largest changes and how sup
             <div class="empty" id="empty">
               <div>
                 <div class="empty-symbol" aria-hidden="true">▥</div>
-                <h3>Make the numbers useful</h3>
+                <h3>No report yet</h3>
                 <p>
-                  Choose a dataset and a question. Your report will bring the
-                  method, findings, and limitations together.
+                  Choose a CSV file, enter a question, and select Generate
+                  report.
                 </p>
               </div>
             </div>
@@ -113,33 +114,10 @@ Compare monthly revenue by region and plan. Show the largest changes and how sup
           </div>
         </section>
       </main>
-      <aside class="notes">
-        <div class="note">
-          <b>A sandbox for each analysis</b>
-          <p>
-            Each run creates a separate workspace and requests its termination
-            when the work finishes.
-          </p>
-        </div>
-        <div class="note">
-          <b>A report you can keep</b>
-          <p>
-            Download a self-contained HTML file. The app does not save uploads
-            or reports on its server.
-          </p>
-        </div>
-        <div class="note">
-          <b>A reproducible starting point</b>
-          <p>
-            The sample contains fictional telecom revenue and support data for
-            three months.
-          </p>
-        </div>
-      </aside>
       <footer>
-        <span>MKA1 API · Reference application</span
+        <span>MKA1 · CSV analyst</span
         ><a href="https://docs.mka1.com" target="_blank" rel="noreferrer"
-          >Read the API docs ↗</a
+          >Documentation ↗</a
         >
       </footer>
     </div>

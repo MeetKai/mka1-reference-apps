@@ -23,7 +23,7 @@ Open <http://127.0.0.1:8002>. Stop the server with Ctrl+C. Restart after changin
 
 ## Try it
 
-Click **Use the sample telecom dataset**, keep the default question, and click **Generate report**. Download the report when it finishes. The fictional dataset has 12 rows and 6 columns. Monthly revenue totals are July $61,000, August $64,950, and September $69,000. Check these totals when evaluating a model or changing the analysis instructions.
+Click **Use example data**, keep the default question, and click **Generate report**. Download the report when it finishes. The fictional dataset has 12 rows and 6 columns. Monthly revenue totals are July $61,000, August $64,950, and September $69,000. Check these totals when evaluating a model or changing the analysis instructions.
 
 The report should identify its calculations and limitations. Human review is still required: a completed model response is not proof that every calculation or conclusion is correct.
 

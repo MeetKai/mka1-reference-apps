@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta
       name="description"
-      content="Route customer requests to the right team. Start with a sample or bring your own ticket, then review the suggested priority and next action."
+      content="Get a suggested team, priority, and next action for a customer support ticket."
     />
-    <title>Turn tickets into next steps. · MKA1 reference apps</title>
+    <title>Ticket triage · MKA1</title>
     <link rel="stylesheet" href="/static/styles.css" />
     <script src="/static/app.js" defer></script>
   </head>
@@ -17,19 +17,16 @@
         <div class="brand">
           <span class="brand-mark" aria-hidden="true">M1</span>MKA1
         </div>
-        <span class="topnote">Reference applications / 01</span>
+        <span class="topnote">Customer support</span>
       </header>
       <section class="intro">
         <div>
-          <div class="eyebrow">A working example, ready to explore</div>
-          <h1>Turn tickets into next steps.</h1>
+          <h1>Ticket triage</h1>
           <p>
-            Route customer requests to the right team. Start with a sample or
-            bring your own ticket, then review the suggested priority and next
-            action.
+            Get a suggested team, priority, and next action for a customer
+            support ticket.
           </p>
         </div>
-        <span class="pill"><span class="dot"></span>Python SDK</span>
       </section>
       <main class="workspace">
         <section class="card">
@@ -38,8 +35,11 @@
             <span class="step">01 / INPUT</span>
           </div>
           <div class="cardbody">
-            <span class="label">Try a sample ticket</span>
+            <span class="label">Example tickets</span>
             <div class="samples" id="samples"></div>
+            <p class="subline">
+              These tickets contain fictional customer details.
+            </p>
             <form id="form">
               <label class="label" for="ticket">Ticket description</label
               ><textarea
@@ -51,7 +51,7 @@
                 placeholder="Describe the customer’s issue…"
               ></textarea>
               <p class="subline">
-                Only this ticket is sent to the API when you select Analyze.
+                Your ticket is sent to MKA1 when you select Analyze ticket.
               </p>
               <button class="primary" id="submit" type="submit">
                 Analyze ticket <span aria-hidden="true">→</span>
@@ -70,10 +70,10 @@
             <div class="empty" id="empty">
               <div>
                 <div class="empty-symbol" aria-hidden="true">↗</div>
-                <h3>A clear place to start</h3>
+                <h3>No recommendation yet</h3>
                 <p>
-                  Your recommendation will include a team, a priority, and a
-                  suggested next action.
+                  Enter a ticket and select Analyze ticket to get a suggested
+                  team, priority, and next action.
                 </p>
               </div>
             </div>
@@ -88,40 +88,17 @@
               <h4>Suggested next action</h4>
               <div class="next-action"><p id="next-action"></p></div>
               <div class="result-footer">
-                Review this suggestion before acting. No customer account or
-                ticket system has been changed.
+                Review the recommendation before acting. This tool does not
+                update customer accounts or submit tickets.
               </div>
             </div>
           </div>
         </section>
       </main>
-      <aside class="notes">
-        <div class="note">
-          <b>Three teams, one consistent policy</b>
-          <p>
-            Billing, technical support, or account services. Each decision
-            follows the same routing instructions.
-          </p>
-        </div>
-        <div class="note">
-          <b>A suggestion you can inspect</b>
-          <p>
-            The rationale refers to the ticket. You decide whether the proposed
-            route makes sense.
-          </p>
-        </div>
-        <div class="note">
-          <b>Start with synthetic data</b>
-          <p>
-            The included tickets are fictional. Use data you are permitted to
-            send to your configured API.
-          </p>
-        </div>
-      </aside>
       <footer>
-        <span>MKA1 API · Reference application</span
+        <span>MKA1 · Ticket triage</span
         ><a href="https://docs.mka1.com" target="_blank" rel="noreferrer"
-          >Read the API docs ↗</a
+          >Documentation ↗</a
         >
       </footer>
     </div>

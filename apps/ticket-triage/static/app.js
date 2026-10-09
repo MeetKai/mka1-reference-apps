@@ -45,7 +45,7 @@ fetch("/api/samples")
   })
   .catch(() =>
     showError(
-      "Sample tickets could not load. You can still enter your own ticket.",
+      "Could not load the example tickets. Enter a ticket to continue.",
     ),
   );
 $("form").addEventListener("submit", async (event) => {

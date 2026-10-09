@@ -31,9 +31,9 @@ $("file").addEventListener("change", () => selectFile($("file").files[0]));
 $("sample").addEventListener("click", async () => {
   try {
     const r = await fetch("/api/sample");
-    if (!r.ok) throw new Error("Could not load the sample.");
+    if (!r.ok) throw new Error("Could not load the example data.");
     selectFile(
-      new File([await r.blob()], "sample-telecom.csv", { type: "text/csv" }),
+      new File([await r.blob()], "telecom-data.csv", { type: "text/csv" }),
     );
     $("file").value = "";
   } catch (error) {
@@ -44,7 +44,7 @@ $("form").addEventListener("submit", async (event) => {
   event.preventDefault();
   $("error").hidden = true;
   if (!selectedFile)
-    return showError("Choose a CSV or select the sample dataset first.");
+    return showError("Choose a CSV file or select Use example data.");
   if (selectedFile.size > 1000000)
     return showError("Use a CSV smaller than 1 MB.");
   const payload = new FormData();
@@ -53,10 +53,7 @@ $("form").addEventListener("submit", async (event) => {
   $("result").hidden = true;
   $("empty").hidden = false;
   $("warning").hidden = true;
-  busy(
-    true,
-    "Preparing a sandbox, analyzing the CSV, and downloading the report. Allow a few minutes…",
-  );
+  busy(true, "Generating your report. This may take a few minutes…");
   try {
     const data = await responseData(
       await fetch("/api/analyze", { method: "POST", body: payload }),
