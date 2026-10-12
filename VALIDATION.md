@@ -18,7 +18,7 @@ Checked on October 12, 2026 against the public MKA1 API gateway using the publis
 | Separate uploaded CSV with positive and negative changes | Report matched the expected figures below |
 | Background-job browser flow | Passed; browser received the completed report through status polling |
 | Empty-report fault injection with live model recovery | Passed; an injected first completion left an empty file, one live model request regenerated it, and sandbox termination was confirmed |
-| Sandbox cleanup | Recent CSV test sessions were reported as terminated by the API |
+| Sandbox cleanup | No recent CSV test sessions remained running in the final check; the API reported stopped or terminated states |
 
 The separate upload used [monthly-changes.csv](apps/csv-analyst/tests/fixtures/monthly-changes.csv) with this question:
 
