@@ -60,8 +60,21 @@ class PassiveHTML(HTMLParser):
         elif tag in DISCARD:
             self.discard.append(tag)
         elif tag in ALLOWED:
-            # No model-supplied attributes, CSS, URLs, or event handlers survive.
-            self.parts.append(f"<{tag}>")
+            # Preserve bounded table spans so grouped headers keep their meaning.
+            # All other attributes, CSS, URLs, and event handlers are removed.
+            spans = {}
+            if tag in {"th", "td"}:
+                for name, value in attrs:
+                    if (
+                        name in {"colspan", "rowspan"}
+                        and value
+                        and value.isascii()
+                        and value.isdigit()
+                    ):
+                        if len(value) <= 4 and 1 <= int(value) <= 1000:
+                            spans[name] = int(value)
+            attributes = "".join(f' {name}="{value}"' for name, value in spans.items())
+            self.parts.append(f"<{tag}{attributes}>")
 
     def handle_startendtag(self, tag, attrs):
         self.handle_starttag(tag, attrs)

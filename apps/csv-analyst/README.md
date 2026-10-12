@@ -29,20 +29,22 @@ The report should identify its calculations and limitations. Human review is sti
 
 ## How it works
 
-1. Validate the CSV as UTF-8 with 2–50 unique named columns, at least one data row, and consistent row widths.
-2. Create a sandbox with the Python feature and a ten-minute lifetime, using a fresh demo end-user identity.
-3. Upload the CSV through the SDK.
-4. Call Responses with a shell tool attached to that sandbox. The model uses Python to analyze the file and write a report.
-5. Download and sanitize the report, stripping model-supplied scripts, styles, attributes, and external resources. A fixed stylesheet makes the result readable.
-6. Request sandbox termination in a `finally` block, including after a failed model call or download. If immediate cleanup fails, show that uncertainty explicitly.
+1. Accept the upload as a background job. The browser checks its status with short requests, so it does not need to hold a connection open throughout the analysis.
+2. Validate the CSV as UTF-8 with 2–50 unique named columns, at least one data row, and consistent row widths.
+3. Create a sandbox with the Python feature and a ten-minute lifetime, using a fresh demo end-user identity.
+4. Upload the CSV through the SDK.
+5. Call Responses with a shell tool attached to that sandbox. The model uses Python to analyze the file and write a report.
+6. Download and validate the report. If the completed model response left a missing, empty, oversized, or malformed report, ask it to regenerate the file once in the same sandbox. Authentication and service errors are not automatically retried.
+7. Sanitize the report, stripping model-supplied scripts, styles, external resources, and attributes other than validated table-cell spans. A fixed stylesheet makes the result readable.
+8. Request sandbox termination in a `finally` block, including after a failed model call or download. If immediate cleanup fails, show that uncertainty explicitly.
 
-The browser receives the finished report as a download. The web server does not save uploads or reports to an application database or permanent files. Uploaded files may be temporarily spooled while parsing the request and are closed after reading. Sandbox and upstream retention depend on your cluster.
+The browser receives the finished report as a download. Keep the tab open while the job runs. Completed results are held in memory for ten minutes, with at most five jobs retained; restarting the server clears them. Reloading the page does not cancel a running job, but the page loses its job ID. The web server does not save uploads or reports to an application database or permanent files. Uploaded files may be temporarily spooled while parsing the request and are closed after reading. Sandbox and upstream retention depend on your cluster.
 
 ## Limits and cleanup
 
 - Maximum CSV: 1 MB, 20,000 data rows, and 50 columns.
 - One concurrent analysis per server process.
-- Sandbox startup wait: up to one minute; model request timeout: three minutes; at most 12 tool calls.
+- Sandbox startup wait: up to one minute; model request timeout: three minutes per attempt; at most two attempts with 12 tool calls each. A recovery attempt makes one additional model request and can take up to three more minutes.
 - HTML report: up to 2 MB before sanitization. Images and custom styling are removed.
 - No packages are installed by the app. The analysis instructions ask the model to use Python's standard library and avoid network access. Enforce network restrictions in your sandbox infrastructure if required.
 

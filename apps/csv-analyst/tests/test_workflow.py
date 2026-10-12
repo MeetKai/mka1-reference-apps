@@ -5,6 +5,7 @@ from unittest.mock import Mock
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+from meetkai_mka1 import errors
 
 import app as server
 from report import sanitize_report
@@ -153,15 +154,19 @@ def test_download_consumes_stream_and_closes_it():
 
 def test_oversized_stream_rejected_and_sandbox_cleaned_up():
     sdk = fake_sdk()
-    download = httpx.Response(
-        200,
-        stream=httpx.ByteStream(b"x" * 2_000_001),
-        request=httpx.Request("GET", "https://example.test/report"),
-    )
-    sdk.sandbox.download_file.return_value = download
+    downloads = [
+        httpx.Response(
+            200,
+            stream=httpx.ByteStream(b"x" * 2_000_001),
+            request=httpx.Request("GET", "https://example.test/report"),
+        )
+        for _ in range(2)
+    ]
+    sdk.sandbox.download_file.side_effect = downloads
     with pytest.raises(WorkflowError, match="exceeded 2 MB"):
         analyze(CSV, "Compare the monthly revenue.", sdk)
-    assert download.is_closed
+    assert all(download.is_closed for download in downloads)
+    assert sdk.llm.responses.create.call_count == 2
     sdk.sandbox.terminate.assert_called_once()
 
 
@@ -236,20 +241,134 @@ def test_csv_api_success_failure_recovery_and_capacity(monkeypatch):
         )
 
     failed = post()
-    assert failed.status_code == 502
-    assert "secret_api_key" not in failed.text
+    assert failed.status_code == 202
+    outcome = client.get("/api/jobs/" + failed.json()["job_id"])
+    assert outcome.json()["status"] == "failed"
+    assert "secret_api_key" not in outcome.text
     run.side_effect = None
     run.return_value = {"summary": "Report ready", "profile": {"rows": 2}}
-    assert post().status_code == 200
+    assert post().status_code == 202
     assert server.capacity.acquire(blocking=False)
     try:
         assert post().status_code == 429
     finally:
         server.capacity.release()
-    assert post().status_code == 200
+    assert post().status_code == 202
 
 
 def test_missing_api_key_does_not_start_analysis(monkeypatch):
     monkeypatch.delenv("MKA1_API_KEY", raising=False)
     with pytest.raises(WorkflowError, match="Set MKA1_API_KEY"):
         analyze(CSV, "Compare monthly revenue.")
+
+
+@pytest.mark.parametrize("body", [b"", b"not HTML", b"<html><p> </p></html>", b"<html>\xff</html>"])
+def test_invalid_report_is_regenerated_once_in_same_sandbox(body):
+    sdk = fake_sdk()
+    valid = sdk.sandbox.download_file.return_value
+    invalid = httpx.Response(
+        200, content=body, request=httpx.Request("GET", "https://example.test/report")
+    )
+    sdk.sandbox.download_file.side_effect = [invalid, valid]
+    result = analyze(CSV, "Compare the monthly revenue.", sdk)
+    assert b"July: 100" in base64.b64decode(result["report_base64"])
+    assert sdk.llm.responses.create.call_count == 2
+    assert (
+        "previous attempt failed validation" in sdk.llm.responses.create.call_args.kwargs["input"]
+    )
+    sdk.sandbox.create.assert_called_once()
+    sdk.sandbox.terminate.assert_called_once()
+    assert invalid.is_closed and valid.is_closed
+
+
+def test_recovery_stops_after_second_empty_report_and_cleans_up():
+    sdk = fake_sdk()
+    sdk.sandbox.download_file.side_effect = [
+        httpx.Response(
+            200, content=b"", request=httpx.Request("GET", "https://example.test/report")
+        )
+        for _ in range(2)
+    ]
+    with pytest.raises(WorkflowError, match="after two attempts"):
+        analyze(CSV, "Compare the monthly revenue.", sdk)
+    assert sdk.llm.responses.create.call_count == 2
+    sdk.sandbox.create.assert_called_once()
+    sdk.sandbox.terminate.assert_called_once()
+
+
+@pytest.mark.parametrize("status", [404, 403, 503])
+def test_missing_file_recovers_but_auth_and_service_errors_do_not_retry(status):
+    sdk = fake_sdk()
+    response = httpx.Response(
+        status, text="upstream details", request=httpx.Request("GET", "https://example.test/report")
+    )
+    error = errors.SDKDefaultError("API error", response, response.text)
+    sdk.sandbox.download_file.side_effect = [error, sdk.sandbox.download_file.return_value]
+    if status == 404:
+        assert analyze(CSV, "Compare the monthly revenue.", sdk)["cleanup_warning"] is None
+        assert sdk.llm.responses.create.call_count == 2
+    else:
+        with pytest.raises(errors.SDKDefaultError):
+            analyze(CSV, "Compare the monthly revenue.", sdk)
+        assert sdk.llm.responses.create.call_count == 1
+    sdk.sandbox.terminate.assert_called_once()
+
+
+def test_background_job_result_polling_and_expiration(monkeypatch):
+    client = TestClient(server.app)
+    result = {"report_base64": "aGVsbG8=", "profile": {"rows": 2}}
+    monkeypatch.setattr(server, "analyze", Mock(return_value=result))
+    response = client.post(
+        "/api/analyze",
+        data={"question": "Compare monthly revenue."},
+        files={"file": ("data.csv", CSV, "text/csv")},
+    )
+    assert response.status_code == 202
+    job_id = response.json()["job_id"]
+    completed = client.get("/api/jobs/" + job_id).json()
+    assert completed == {"status": "completed", "result": result}
+    server.expire_job(job_id)
+    assert client.get("/api/jobs/" + job_id).status_code == 404
+
+
+def test_background_timeout_is_actionable_and_capacity_is_released(monkeypatch):
+    client = TestClient(server.app)
+    monkeypatch.setattr(
+        server, "analyze", Mock(side_effect=httpx.ReadTimeout("private upstream URL"))
+    )
+    response = client.post(
+        "/api/analyze",
+        data={"question": "Compare monthly revenue."},
+        files={"file": ("data.csv", CSV, "text/csv")},
+    )
+    outcome = client.get("/api/jobs/" + response.json()["job_id"])
+    assert outcome.json()["status"] == "failed"
+    assert "timed out" in outcome.json()["error"]
+    assert "private upstream" not in outcome.text
+    assert server.capacity.acquire(blocking=False)
+    server.capacity.release()
+
+
+def test_timeout_still_terminates_sandbox_without_repeating_model_call():
+    sdk = fake_sdk()
+    sdk.llm.responses.create.side_effect = httpx.ReadTimeout("upstream timeout")
+    with pytest.raises(httpx.ReadTimeout):
+        analyze(CSV, "Compare monthly revenue.", sdk)
+    sdk.llm.responses.create.assert_called_once()
+    sdk.sandbox.terminate.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "attrs,expected",
+    [
+        ('colspan="2" rowspan="3" onclick="alert(1)"', '<th colspan="2" rowspan="3">'),
+        ('colspan="9999" rowspan="0" style="color:red"', "<th>"),
+        ('colspan="2 onmouseover=alert(1)"', "<th>"),
+    ],
+)
+def test_sanitized_table_headers_preserve_only_valid_spans(attrs, expected):
+    report = sanitize_report(
+        f"<html><table><tr><th {attrs}>North</th></tr></table></html>"
+    ).decode()
+    assert expected + "North</th>" in report
+    assert "onclick" not in report and "onmouseover" not in report

@@ -4,7 +4,9 @@ function showError(message) {
   $("error").hidden = false;
 }
 function busy(value, label) {
-  $("submit").disabled = value;
+  document.querySelectorAll("button, input, textarea").forEach((element) => {
+    element.disabled = value;
+  });
   $("status").textContent = value ? label : "";
   $("empty").classList.toggle("busy-symbol", value);
 }
@@ -55,9 +57,36 @@ $("form").addEventListener("submit", async (event) => {
   $("warning").hidden = true;
   busy(true, "Generating your report. This may take a few minutes…");
   try {
-    const data = await responseData(
+    const job = await responseData(
       await fetch("/api/analyze", { method: "POST", body: payload }),
     );
+    let data;
+    let connectionFailures = 0;
+    const deadline = Date.now() + 10 * 60 * 1000;
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      let response;
+      try {
+        response = await fetch("/api/jobs/" + encodeURIComponent(job.job_id));
+        connectionFailures = 0;
+      } catch {
+        if (++connectionFailures >= 5)
+          throw new Error(
+            "Lost connection to the app. Check that the server is running.",
+          );
+        continue;
+      }
+      const progress = await responseData(response);
+      if (progress.status === "failed") throw new Error(progress.error);
+      if (progress.status === "completed") {
+        data = progress.result;
+        break;
+      }
+    }
+    if (!data)
+      throw new Error(
+        "The analysis took longer than expected. Check the server before starting another run.",
+      );
     if (reportUrl) URL.revokeObjectURL(reportUrl);
     const bytes = Uint8Array.from(atob(data.report_base64), (ch) =>
       ch.charCodeAt(0),
