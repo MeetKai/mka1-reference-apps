@@ -14,7 +14,7 @@ class WorkflowError(Exception):
 
 
 class Decision(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     team: Literal["billing", "technical_support", "account_services"]
     priority: Literal["P1", "P2", "P3"]

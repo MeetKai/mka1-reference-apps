@@ -51,6 +51,7 @@ class PassiveHTML(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.parts = []
         self.discard = []
+        self.has_readable_text = False
 
     def handle_starttag(self, tag, attrs):
         if self.discard:
@@ -76,6 +77,8 @@ class PassiveHTML(HTMLParser):
     def handle_data(self, data):
         if not self.discard:
             self.parts.append(escape(data))
+            if data.strip():
+                self.has_readable_text = True
 
 
 def sanitize_report(source: str) -> bytes:
@@ -83,7 +86,7 @@ def sanitize_report(source: str) -> bytes:
     parser.feed(source)
     parser.close()
     body = "".join(parser.parts)
-    if not body.strip():
+    if not parser.has_readable_text:
         raise ValueError("The report contains no readable content.")
     return (
         """<!doctype html><html lang="en"><head><meta charset="utf-8">

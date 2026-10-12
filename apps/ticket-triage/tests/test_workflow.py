@@ -100,3 +100,37 @@ def test_cross_site_requests_and_unknown_hosts_are_rejected():
     )
     assert client.get("/", headers={"host": "evil.example"}).status_code == 400
     assert "default-src 'self'" in client.get("/").headers["content-security-policy"]
+
+
+def test_rejects_whitespace_only_decision_fields():
+    with pytest.raises(WorkflowError, match="invalid routing decision"):
+        classify("Dispatch lines unavailable", fake_sdk(json.dumps({**DECISION, "summary": "   "})))
+
+
+def test_api_limits_capacity_and_recovery(monkeypatch):
+    client = TestClient(server.app)
+    run = Mock(return_value={"decision": DECISION, "response_id": "test"})
+    monkeypatch.setattr(server, "classify", run)
+    assert client.post("/api/triage", json={"ticket": "x" * 12001}).status_code == 422
+    assert not run.called
+    assert server.capacity.acquire(blocking=False)
+    assert server.capacity.acquire(blocking=False)
+    try:
+        assert (
+            client.post("/api/triage", json={"ticket": "My line has stopped working."}).status_code
+            == 429
+        )
+        assert not run.called
+    finally:
+        server.capacity.release()
+        server.capacity.release()
+    assert (
+        client.post("/api/triage", json={"ticket": "My line has stopped working."}).status_code
+        == 200
+    )
+
+
+def test_missing_api_key_is_actionable(monkeypatch):
+    monkeypatch.delenv("MKA1_API_KEY", raising=False)
+    with pytest.raises(WorkflowError, match="Set MKA1_API_KEY"):
+        classify("My line has stopped working.")

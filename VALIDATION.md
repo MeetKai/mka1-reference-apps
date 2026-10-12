@@ -1,19 +1,47 @@
 # Validation
 
-Validated on October 9, 2026 against the public MKA1 API gateway using the published Python SDK and fictional sample data.
+Checked on October 12, 2026 against the public MKA1 API gateway using the published Python SDK and fictional data.
 
 | Check | Result |
 | --- | --- |
-| Independent dependency installation with `uv sync --locked` | Passed for both apps |
+| Fresh public clone without GitHub credentials | Passed |
+| Independent installation with `uv sync --locked --python 3.12` | Passed for both apps |
 | Python formatting and lint | Passed for both apps |
-| Automated tests without API credentials | 26 passed |
-| Browser ticket submission with `openai:gpt-4.1-mini` | Passed |
-| All four sample tickets' expected team and priority | Passed |
-| Browser CSV upload, sandbox analysis, report download, and cleanup request with `openai:gpt-4.1` | Passed |
-| Review of sample report figures | Matched source rows; largest increase of $1,500 correctly included all three ties; no decreases; monthly ticket totals 211, 199, 181 |
+| Automated tests on Python 3.12 and 3.13 | 40 passed: 12 for ticket triage, 28 for CSV analyst |
+| Browser ticket submission with `openai:gpt-4.1-mini` | Passed; dispatch outage returned technical support / P1 |
+| Other three sample tickets through the running app | Passed; billing / P3, account services / P3, technical support / P2 |
+| Browser example-data analysis and report download with `openai:gpt-4.1` | Passed |
+| Sample report calculations | Source rows matched; all three $1,500 revenue-increase ties included; no decreases; monthly ticket totals 211, 199, 181 |
+| Browser submission without a file | Rejected with instructions to choose a file |
+| Browser upload with inconsistent CSV row widths | Rejected with a specific validation error |
+| Valid upload after an invalid upload | Passed without restarting the app |
+| Separate uploaded CSV with positive and negative changes | Report matched the expected figures below |
+| Sandbox cleanup | Recent CSV test sessions were reported as terminated by the API |
 
-Model output can vary. These checks establish the sample's observed behavior, not a guarantee of analytical correctness on other data. Review generated reports before using them for decisions.
+The separate upload used [monthly-changes.csv](apps/csv-analyst/tests/fixtures/monthly-changes.csv) with this question:
 
-The CSV app strips active HTML and external resources from downloaded reports. Model instructions to avoid network access are not enforced by the app; use your cluster's sandbox controls for isolation requirements.
+> Compute overall revenue and support-ticket totals for each month. Show revenue changes between consecutive months, including percentage changes. State the largest increase and the largest decrease.
 
-The automated suite includes invalid model output, refusal and failed-response handling, malformed CSVs, cross-origin rejection, streaming report downloads, report sanitization, and sandbox cleanup on failure. The current FastAPI/Starlette test client emits an upstream deprecation warning about its HTTPX adapter; tests still pass.
+The downloaded report contained these values:
+
+| Month | Revenue | Support tickets | Revenue change | Percentage change |
+| --- | ---: | ---: | ---: | ---: |
+| 2026-07 | 300 | 30 | Not applicable | Not applicable |
+| 2026-08 | 240 | 24 | -60 | -20.00% |
+| 2026-09 | 290 | 20 | +50 | +20.83% |
+
+## Fixes from this verification
+
+- Ticket triage now rejects decision fields containing only whitespace.
+- CSV analyst now rejects reports with HTML tags but no readable body text.
+- Regression tests cover both fixes. Additional checks cover missing credentials, input limits, request-capacity recovery, sandbox startup polling and timeouts, and cleanup failures.
+
+The suite also covers malformed model output, refusals, failed responses, invalid CSVs, cross-origin rejection, streamed downloads, report sanitization, and cleanup after failures. Tests use simulated upstream responses and do not require an API key; the browser checks above used the live API.
+
+## Scope
+
+These results verify the tested configuration and inputs. They do not guarantee availability of model providers or sandbox capacity, or analytical correctness on every dataset. Model output can vary; review generated reports before using them for decisions.
+
+Both apps run locally. Hosting for other users requires the authentication, quotas, and infrastructure described in the repository README. Sandbox network restrictions must be enforced by the cluster; model instructions alone do not provide that isolation.
+
+The FastAPI/Starlette test client emits an upstream deprecation warning about its HTTPX adapter. Tests pass. GitHub Actions is provided as a template and is not enabled in this repository.

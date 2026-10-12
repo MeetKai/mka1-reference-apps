@@ -163,3 +163,93 @@ def test_oversized_stream_rejected_and_sandbox_cleaned_up():
         analyze(CSV, "Compare the monthly revenue.", sdk)
     assert download.is_closed
     sdk.sandbox.terminate.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "html",
+    [
+        "<html><body><p> </p></body></html>",
+        "<html><body><div><br></div></body></html>",
+        "<html><head><title>Report</title></head><body><p>&nbsp;</p></body></html>",
+    ],
+)
+def test_rejects_reports_without_readable_text(html):
+    with pytest.raises(ValueError, match="no readable content"):
+        sanitize_report(html)
+
+
+def test_sandbox_startup_polling_and_failed_start_cleanup(monkeypatch):
+    monkeypatch.setattr("workflow.time.sleep", lambda _: None)
+    sdk = fake_sdk()
+    sdk.sandbox.create.return_value.session.status = "starting"
+    sdk.sandbox.get.return_value = SimpleNamespace(status="running")
+    assert analyze(CSV, "Compare the monthly revenue.", sdk)["profile"]["rows"] == 2
+    sdk.sandbox.get.assert_called_once()
+    sdk = fake_sdk()
+    sdk.sandbox.create.return_value.session.status = "failed"
+    with pytest.raises(WorkflowError, match="could not start"):
+        analyze(CSV, "Compare the monthly revenue.", sdk)
+    sdk.sandbox.terminate.assert_called_once()
+    sdk.llm.responses.create.assert_not_called()
+
+
+def test_sandbox_startup_timeout_still_cleans_up(monkeypatch):
+    sdk = fake_sdk()
+    sdk.sandbox.create.return_value.session.status = "starting"
+    clock = iter([0, 61])
+    monkeypatch.setattr("workflow.time.monotonic", lambda: next(clock))
+    with pytest.raises(WorkflowError, match="not ready"):
+        analyze(CSV, "Compare the monthly revenue.", sdk)
+    sdk.sandbox.terminate.assert_called_once()
+
+
+def test_failure_and_failed_cleanup_reports_both_without_details():
+    sdk = fake_sdk(status="failed", cleanup_error=True)
+    with pytest.raises(WorkflowError, match="cleanup could not be confirmed") as error:
+        analyze(CSV, "Compare the monthly revenue.", sdk)
+    assert "private_details" not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        b"a,b\n" + b"1,2\n" * 20001,
+        b"a,b\n" + b"x" * 1_000_000,
+        (",".join(f"c{i}" for i in range(51)) + "\n" + ",".join("1" for _ in range(51))).encode(),
+    ],
+)
+def test_csv_resource_limits(raw):
+    with pytest.raises(ValueError):
+        validate_csv(raw)
+
+
+def test_csv_api_success_failure_recovery_and_capacity(monkeypatch):
+    client = TestClient(server.app)
+    run = Mock(side_effect=RuntimeError("secret_api_key"))
+    monkeypatch.setattr(server, "analyze", run)
+
+    def post():
+        return client.post(
+            "/api/analyze",
+            data={"question": "Compare monthly revenue."},
+            files={"file": ("data.csv", CSV, "text/csv")},
+        )
+
+    failed = post()
+    assert failed.status_code == 502
+    assert "secret_api_key" not in failed.text
+    run.side_effect = None
+    run.return_value = {"summary": "Report ready", "profile": {"rows": 2}}
+    assert post().status_code == 200
+    assert server.capacity.acquire(blocking=False)
+    try:
+        assert post().status_code == 429
+    finally:
+        server.capacity.release()
+    assert post().status_code == 200
+
+
+def test_missing_api_key_does_not_start_analysis(monkeypatch):
+    monkeypatch.delenv("MKA1_API_KEY", raising=False)
+    with pytest.raises(WorkflowError, match="Set MKA1_API_KEY"):
+        analyze(CSV, "Compare monthly revenue.")
